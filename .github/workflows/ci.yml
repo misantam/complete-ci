@@ -3,6 +3,8 @@ name: CI
 on:
   pull_request:
     branches: [develop]
+  push:
+    branches: [develop]
     
 jobs:
   build:
@@ -20,12 +22,27 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: "14"
-      - run: npm ci # Como npm install con mas cosas
+      - run: npm ci
       - run: npm test -- --coverage
-        env:
+        env: 
           CI: true
       - name: Subir Test Coverage
         uses: actions/upload-artifact@v2
         with:
           name: code-coverage
-          path: coverage
+          path: coverage  
+      - name: Build Project
+        if: ${{ github.event_name == 'push' }}
+        run: npm run build
+      - name: Subir Directorio Build
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: build
+          path: build  
+      - name: Desplegar a preproducion
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
+        env:
+          SURGE_LOGIN: ${{ secrets.SURGE_LOGIN }}
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
+        run: npx surge --project ./build --domain dynamic-icicle.surge.sh
